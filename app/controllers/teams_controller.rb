@@ -49,12 +49,16 @@ class TeamsController < ApplicationController
     @team = current_user.keep_team_id ? Team.find(current_user.keep_team_id) : current_user.teams.first
   end
 
-  # リーダー権限を移動する処理
+
   def pass_owner
-    if @team.update(pass_owner_params)
-      redirect_to team_url, notice: "#{@team.name}のリーダー権限を移動しました。"
+    @assign = Assign.find(params[:assign])
+    if @team.update(owner_id: @assign.user.id)
+      # リーダー権限を移動させ、新しく権限を付与されたユーザーにメールを送信する処理
+      PassOwnerMailer.pass_owner_mail(@assign, @team).deliver
+      redirect_to team_url, notice: I18n.t('views.messages.assign_to_leader', :team => @team.name)
     else
-      redirect_to team_url, notice: 'リーダー権限を移動できませんでした。'
+      # リーダー権限が移動できなかった場合の処理
+      redirect_to team_url, notice: I18n.t('views.messages.cannot_assign_to_leader')
     end
   end
 
@@ -66,10 +70,5 @@ class TeamsController < ApplicationController
 
   def team_params
     params.fetch(:team, {}).permit %i[name icon icon_cache owner_id keep_team_id]
-  end
-
-  # リーダー権限を移動する際のパラメータ
-  def pass_owner_params
-    params.fetch(:team, {}).permit %i[name icon icon_cache owner_id]
   end
 end
